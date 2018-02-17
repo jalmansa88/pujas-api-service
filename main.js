@@ -1,32 +1,21 @@
-var express = require("express");
+var express = require('express');
 var jwt = require('jsonwebtoken');
 var mongoAccess = require("mongodb").MongoClient;
 var bodyParser = require('body-parser');
 var securePaths = express.Router();
-
-var app = express();
-
 const crypto = require('crypto');
 const encryptionKey = '.!?jkasxLjs?';
 
+Usuario = require("./model/Usuario");
+Evento = require("./model/Evento");
+Puja = require("./model/Puja");
+
+var app = express();
+
 app.use(bodyParser());
+app.use("/user/:username", securePaths);
 
-function Usuario(username, pass, name){
-    this.username = username;
-    this.pass = pass;
-    this.name = name;
-}
 
-function Puja(username, amount, event){
-    this.username = username;
-    this.amount = amount;
-    this.evento = evento;
-}
-
-function Evento(name, description){
-    this.name = name;
-    this.description = description;
-}
 
 function returnCommonResponse(res, httpCode, json){
     res.status(httpCode);
@@ -37,29 +26,8 @@ function returnCommonResponse(res, httpCode, json){
 function userParams(username, pass, name){
     return (username || pass || name);
 }
-//
-//function findUserByUsername(username, response){
-//    mongoAccess.connect('mongodb://usuario:1234@ds123658.mlab.com:23658/masterunir',  
-//        function(err, db){
-//            if (err) {
-//                console.log("Error conectando a la BD " + err);
-//            } else {
-//                var collection = db.collection('users');
-//                collection.find({username: username}).toArray(function(err, users){
-//                    if(!err && users.length == 0){
-//                        console.log("Usuario no encontrado " + users);
-//                    }else{
-//                        console.log("error o usuario ya existente");
-//                        console.log("user AQUI" + users);
-//                        response.users = users;
-//                    }
-//                });
-//                db.close();
-//            } 
-//    })
-//}
 
-app.post("/user/register", function(req, res){
+app.post("/user", function(req, res){
     console.log("create user - init");
     if(!userParams(req.body.username, req.body.pass, req.body.name)){
         res = returnCommonResponse(res, 400, {
@@ -72,17 +40,7 @@ app.post("/user/register", function(req, res){
                 req.body.name);
         return this;
     }
-    
-//    var response = findUserByUsername(req.body, response);
-//    if (users.length){
-//        res = returnCommonResponse(res, 400, {
-//            created: false,
-//            message: "Usuario en uso!"
-//        });
-//        console.log("Username ya en uso");
-//        return this; 
-//    }
-    
+        
     mongoAccess.connect('mongodb://usuario:1234@ds123658.mlab.com:23658/masterunir',
     function(err, db) {
         if (err) {
@@ -92,17 +50,35 @@ app.post("/user/register", function(req, res){
                 message: "DB error 300"
             });
         } else {
-            console.log("Conectado correctamente a MongoDB")
+            console.log("Conectado correctamente a MongoDB");
             
-            var encryptedPass = crypto.createHmac('sha256', encrypttionKey)
+            var collection = db.collection('users');
+            collection.find({username: req.body.username}).toArray(function(err, users){
+                    if(err){
+                        console.log("Error conectando a la DB");
+                        res = returnCommonResponse(res, 500, {
+                            created: false,
+                            message: "Error de conexión con la DB"
+                        });
+                        return this;
+                    }else if(users.length > 0){
+                        res = returnCommonResponse(res, 203, {
+                            created: false,
+                            message: "Username ya en uso"
+                        });
+                        return this;
+                    }
+                    db.close();
+                });
+                
+            var encryptedPass = crypto.createHmac('sha256', encryptionKey)
                     .update(req.body.pass).digest('hex');
             
             var user = new Usuario(
                     req.body.username,
                     encryptedPass, 
                     req.body.name);
-
-            var collection = db.collection('users');
+            
             collection.insert(user, function (err, users) {
                 if (err) {
                     console.log("Error 301 insertando en BD " + err);
@@ -124,11 +100,195 @@ app.post("/user/register", function(req, res){
     console.log("create user - end");
 });
 
-app.post("/user/auth", function(req, res){
-    console.log("auth user - init");
+app.post("/user", function(req, res){
+    console.log("create user - init");
     if(!userParams(req.body.username, req.body.pass, req.body.name)){
         res = returnCommonResponse(res, 400, {
             created: false,
+            message: "Detalles del usuario no validos!"
+        });
+        console.log("Info de usuario incompleta " + 
+                req.body.username,
+                req.body.pass,
+                req.body.name);
+        return this;
+    }
+        
+    mongoAccess.connect('mongodb://usuario:1234@ds123658.mlab.com:23658/masterunir',
+    function(err, db) {
+        if (err) {
+            console.log("Error conectando a la BD " + err);
+            res = returnCommonResponse(res, 500, {
+                created: false,
+                message: "DB error"
+            });
+        } else {
+            console.log("Conectado correctamente a MongoDB");
+            
+            var collection = db.collection('users');
+            collection.find({username: req.body.username}).toArray(function(err, users){
+                    if(err){
+                        console.log("Error conectando a la DB");
+                        res = returnCommonResponse(res, 500, {
+                            created: false,
+                            message: "Error de conexión con la DB"
+                        });
+                        return this;
+                    }else if(users.length > 0){
+                        res = returnCommonResponse(res, 203, {
+                            created: false,
+                            message: "Username ya en uso"
+                        });
+                        return this;
+                    }
+                    db.close();
+                });
+                
+            var encryptedPass = crypto.createHmac('sha256', encryptionKey)
+                    .update(req.body.pass).digest('hex');
+            
+            var user = new Usuario(
+                    req.body.username,
+                    encryptedPass, 
+                    req.body.name);
+            
+            collection.insert(user, function (err, users) {
+                if (err) {
+                    console.log("Error insertando en BD " + err);
+                    res = returnCommonResponse(res, 400, {
+                        created: false,
+                        message: "DB error"
+                    });
+                } else {
+                    console.log("Usuario Creado");
+                    res = returnCommonResponse(res, 200, {
+                        created: true,
+                        message: "Usuario creado satisfactoriamente"
+                    });
+                }
+                db.close();
+            });
+        }
+    });
+    console.log("create user - end");
+});
+
+app.patch("/user/:username", function(req, res){
+    console.log("update user - init");
+    
+    if(!userParams(req.body.username, req.body.pass, req.body.name)){
+        res = returnCommonResponse(res, 400, {
+            created: false,
+            message: "Detalles del usuario no validos!"
+        });
+        console.log("Info de usuario incompleta " + 
+                req.body.username,
+                req.body.pass,
+                req.body.name);
+        return this;
+    }
+            
+    mongoAccess.connect('mongodb://usuario:1234@ds123658.mlab.com:23658/masterunir',
+    function(err, db) {
+        if (err) {
+            console.log("Error conectando a la BD " + err);
+            res = returnCommonResponse(res, 500, {
+                updated: false,
+                message: "DB error"
+            });
+        } else {
+            console.log("Conectado correctamente a MongoDB");
+            
+            var collection = db.collection('users');
+//            collection.find({username: req.body.username}).toArray(function(err, users){
+//                    if(err){
+//                        console.log("Error conectando a la DB");
+//                        res = returnCommonResponse(res, 500, {
+//                            updated: false,
+//                            message: "Error de conexión con la DB"
+//                        });
+//                        return this;
+//                    }else if(users.length = 0){
+//                        res = returnCommonResponse(res, 203, {
+//                            updated: false,
+//                            message: "Usuario a actualizar no encontrado en DB"
+//                        });
+//                        return this;
+//                    }
+//                    db.close();
+//                });
+                
+            var encryptedPass = crypto.createHmac('sha256', encryptionKey)
+                    .update(req.body.pass).digest('hex');
+            
+            var user = new Usuario(
+                    req.body.username,
+                    encryptedPass, 
+                    req.body.name);
+                    
+            collection.update({username : req.params.username}, user, function (err, response) {
+                if (err || response.result.n == 0) {
+                    console.log("Error al actualizar usuario " + err);
+                    res = returnCommonResponse(res, 400, {
+                        updated: false,
+                        message: "Error actualizando usuario"
+                    });
+                } else {
+                    console.log("Usuario actualizado");
+                    res = returnCommonResponse(res, 201, {
+                        updated: true,
+                        message: "Usuario actualizado"
+                    });
+                }
+                db.close();
+            });
+        }
+    });
+    console.log("update user - end");
+});
+
+app.delete("/user/:username", function(req, res){
+    console.log("delete user - init");
+    
+    mongoAccess.connect('mongodb://usuario:1234@ds123658.mlab.com:23658/masterunir',
+    function(err, db) {
+        if (err) {
+            console.log("Error 300 conectando a la BD " + err);
+            res = returnCommonResponse(res, 500, {
+                deleted: false,
+                message: "DB error 300"
+            });
+        } else {
+            console.log("Conectado correctamente a MongoDB");
+            
+            var collection = db.collection('users');
+            
+            collection.remove({username : req.params.username}, function (err, response) {
+                if (err || response.result.n == 0) {
+                    console.log("Error al eliminar usuario " + err);
+                    res = returnCommonResponse(res, 400, {
+                        deleted: false,
+                        message: "Error eliminando usuario"
+                    });
+                } else {
+                    console.log("Usuario eliminado:");
+                    res = returnCommonResponse(res, 410, {
+                        deleted: true,
+                        message: "Usuario eliminado"
+                    });
+                }
+                db.close();
+            });
+        }
+    });
+    console.log("delete user - end");
+});
+
+app.post("/auth", function(req, res){
+    console.log("auth user - init");
+    if(!userParams(req.body.username, req.body.pass, req.body.name)){
+        res = returnCommonResponse(res, 400, {
+            auth: false,
             message: "Detalles del usuario no validos!"
         });
         console.log("Info de usuario incompleta " + 
@@ -156,10 +316,10 @@ app.post("/user/auth", function(req, res){
             collection.find({username : req.body.username, pass : encryptedPass})
                     .toArray(function (err, user) {
                         if (err || user.length == 0) {
-                            console.log("Error leyendo usuario de BD " + err);
+                            console.log("Auth incorrecto");
                             res = returnCommonResponse(res, 400, {
                                 auth: false,
-                                message: "DB error"
+                                message: "Auth incorrecto"
                             });
                         } else {
                             console.log("Auth correcto para el usuario " + user[0].username);
@@ -185,32 +345,30 @@ securePaths.use(function(req, res, next){
     
     if(authToken){
         jwt.verify(authToken, encryptionKey, function(err, resToken){
-            if(err || (date.now()/1000 - resToken.timestamp) > 60){
-                return res.json({
-                    access : false,
-                    message : "Token invalido o expirado"
-                });
+            if(err || (Date.now()/1000 - resToken.timestamp) > 60){
+                return res = returnCommonResponse(res, 403, {
+                        access: true,
+                        message: "Token invalido o expirado",
+                    });
             }else{
                 console.log("Usuario: " + resToken.username);
-                console.log("Activo " + (Date.now()/1000 - infoToken.timestamp) + " segundos");
+                console.log("Activo " + (Date.now()/1000 - resToken.timestamp) + " segundos");
                 res.username = resToken.username;
                 next();
             }
         })
     }else{
-        res = returnCommonResponse(res, 403, {
+        res = returnCommonResponse(res, 400, {
             access: false,
             message: "No se encontrado token",
         });
     }
 });
 
-app.use("/", securePaths);
 app.get("/", function(req, res){
    res.send("GET Works!");
 });
 
-app.listen(8080,
-function(){
+app.listen(8080, function(){
     console.log("Servidor express arrancado");
 });
