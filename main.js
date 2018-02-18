@@ -6,16 +6,17 @@ var securePaths = express.Router();
 const crypto = require('crypto');
 const encryptionKey = '.!?jkasxLjs?';
 
-Usuario = require("./model/Usuario");
-Evento = require("./model/Evento");
-Puja = require("./model/Puja");
+var Usuario = require("./model/Usuario");
+var Evento = require("./model/Evento");
+var Puja = require("./model/Puja");
 
 var app = express();
+var userController = require('./controllers/userController');
 
 app.use(bodyParser());
 app.use("/user/:username", securePaths);
 
-
+//userController(app);
 
 function returnCommonResponse(res, httpCode, json){
     res.status(httpCode);
@@ -26,79 +27,6 @@ function returnCommonResponse(res, httpCode, json){
 function userParams(username, pass, name){
     return (username || pass || name);
 }
-
-app.post("/user", function(req, res){
-    console.log("create user - init");
-    if(!userParams(req.body.username, req.body.pass, req.body.name)){
-        res = returnCommonResponse(res, 400, {
-            created: false,
-            message: "Detalles del usuario no validos!"
-        });
-        console.log("Info de usuario incompleta " + 
-                req.body.username,
-                req.body.pass,
-                req.body.name);
-        return this;
-    }
-        
-    mongoAccess.connect('mongodb://usuario:1234@ds123658.mlab.com:23658/masterunir',
-    function(err, db) {
-        if (err) {
-            console.log("Error 300 conectando a la BD " + err);
-            res = returnCommonResponse(res, 500, {
-                created: false,
-                message: "DB error 300"
-            });
-        } else {
-            console.log("Conectado correctamente a MongoDB");
-            
-            var collection = db.collection('users');
-            collection.find({username: req.body.username}).toArray(function(err, users){
-                    if(err){
-                        console.log("Error conectando a la DB");
-                        res = returnCommonResponse(res, 500, {
-                            created: false,
-                            message: "Error de conexión con la DB"
-                        });
-                        return this;
-                    }else if(users.length > 0){
-                        res = returnCommonResponse(res, 203, {
-                            created: false,
-                            message: "Username ya en uso"
-                        });
-                        return this;
-                    }
-                    db.close();
-                });
-                
-            var encryptedPass = crypto.createHmac('sha256', encryptionKey)
-                    .update(req.body.pass).digest('hex');
-            
-            var user = new Usuario(
-                    req.body.username,
-                    encryptedPass, 
-                    req.body.name);
-            
-            collection.insert(user, function (err, users) {
-                if (err) {
-                    console.log("Error 301 insertando en BD " + err);
-                    res = returnCommonResponse(res, 400, {
-                        created: false,
-                        message: "DB error 301"
-                    });
-                } else {
-                    console.log("Usuario Creado");
-                    res = returnCommonResponse(res, 200, {
-                        created: true,
-                        message: "Usuario creado satisfactoriamente"
-                    });
-                }
-                db.close();
-            });
-        }
-    });
-    console.log("create user - end");
-});
 
 app.post("/user", function(req, res){
     console.log("create user - init");
@@ -133,25 +61,26 @@ app.post("/user", function(req, res){
                             created: false,
                             message: "Error de conexión con la DB"
                         });
+                        db.close();
                         return this;
                     }else if(users.length > 0){
                         res = returnCommonResponse(res, 203, {
                             created: false,
                             message: "Username ya en uso"
                         });
+                        db.close();
                         return this;
-                    }
-                    db.close();
-                });
-                
-            var encryptedPass = crypto.createHmac('sha256', encryptionKey)
-                    .update(req.body.pass).digest('hex');
+                    }       
+            });
             
+            var encryptedPass = crypto.createHmac('sha256', encryptionKey)
+                            .update(req.body.pass).digest('hex');
+
             var user = new Usuario(
                     req.body.username,
                     encryptedPass, 
                     req.body.name);
-            
+
             collection.insert(user, function (err, users) {
                 if (err) {
                     console.log("Error insertando en BD " + err);
@@ -166,7 +95,6 @@ app.post("/user", function(req, res){
                         message: "Usuario creado satisfactoriamente"
                     });
                 }
-                db.close();
             });
         }
     });
@@ -200,23 +128,6 @@ app.patch("/user/:username", function(req, res){
             console.log("Conectado correctamente a MongoDB");
             
             var collection = db.collection('users');
-//            collection.find({username: req.body.username}).toArray(function(err, users){
-//                    if(err){
-//                        console.log("Error conectando a la DB");
-//                        res = returnCommonResponse(res, 500, {
-//                            updated: false,
-//                            message: "Error de conexión con la DB"
-//                        });
-//                        return this;
-//                    }else if(users.length = 0){
-//                        res = returnCommonResponse(res, 203, {
-//                            updated: false,
-//                            message: "Usuario a actualizar no encontrado en DB"
-//                        });
-//                        return this;
-//                    }
-//                    db.close();
-//                });
                 
             var encryptedPass = crypto.createHmac('sha256', encryptionKey)
                     .update(req.body.pass).digest('hex');
