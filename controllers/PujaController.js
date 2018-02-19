@@ -1,5 +1,6 @@
 var jwt = require('jsonwebtoken');
 var mongoAccess = require("mongodb").MongoClient;
+var objectID = require('mongodb').ObjectID;
 const encryptionKey = '.!?jkasxLjs?';
 
 Puja = require("../model/Puja");
@@ -22,18 +23,18 @@ module.exports = function(app){
         jwt.verify(authToken, encryptionKey, function(err, resToken){
            username = resToken.username;
         });
-        
+        mongoAccess.v
         if(!req.body.username 
                 || !req.body.amount 
-                || !req.body.event 
+                || !objectID.isValid(req.body.event)
                 || !authToken
                 || !username === req.body.username){
             
             res = returnCommonResponse(res, 400, {
                 created: false,
-                message: "Parámetros incorrectos incorrectos!"
+                message: "Parámetros incorrectos!"
             });
-            console.log("Detalles del puja incorrectos " + 
+            console.log("Detalles de la puja incorrectos " + 
                     req.body.username,
                     req.body.amount,
                     req.body.event);
@@ -50,27 +51,48 @@ module.exports = function(app){
                 });
             } else {
                 console.log("Conectado correctamente a MongoDB");
-
-                var collection = db.collection('bids');
-
-                var bid = new Puja(
-                        username,
-                        req.body.amount,
-                        req.body.event);
-
-                collection.insert(bid, function (err, result) {
-                    if (err) {
-                        console.log("Error insertando puja en BD " + err);
-                        res = returnCommonResponse(res, 400, {
-                            created: false,
-                            message: "DB error"
+                
+                var eventsCollection = db.collection('events');
+                var bidsCollection = db.collection('bids');
+                
+                var eventId = require('mongodb').ObjectID(req.body.event);
+                
+                eventsCollection.find({_id: eventId}).toArray(function(err, result){
+                    console.log("result: " + result);
+                    if(err){
+                        console.log("Error buscando evento en DB");
+                        res = returnCommonResponse(res, 500, {
+                            found: false,
+                            message: "Error buscando evento en DB"
                         });
-                    } else {
-                        console.log("puja creado");
-                        res = returnCommonResponse(res, 200, {
-                            created: true,
-                            message: "puja creado satisfactoriamente",
-                            details : JSON.stringify(result.ops[0])
+                    }else if(result.length == 0){
+                        console.log("Evento inexistente");
+                        res = returnCommonResponse(res, 500, {
+                            found: false,
+                            message: "Evento " + eventId + " inexistente"
+                        });
+                    }else{
+                        var bid = new Puja(
+                                username,
+                                req.body.amount,
+                                req.body.event);
+
+                        bidsCollection.insert(bid, function (err, result) {
+                            if (err) {
+                                console.log("Error insertando puja en BD " + err);
+                                res = returnCommonResponse(res, 400, {
+                                    created: false,
+                                    message: "DB error"
+                                });
+                            } else {
+                                console.log("Puja creada");
+                                res = returnCommonResponse(res, 200, {
+                                    created: true,
+                                    message: "Puja creada satisfactoriamente",
+                                    details : JSON.stringify(result.ops[0])
+                                });
+                            }
+                            db.close();
                         });
                     }
                     db.close();
@@ -84,7 +106,7 @@ module.exports = function(app){
     app.delete("/bid", function(req, res){
         console.log("delete bid - init");
         
-        if(!req.body.id){
+        if(!objectID.isValid(req.body.id)){
             res = returnCommonResponse(res, 400, {
                 deleted: false,
                 message: "Detalles del puja incorrectos!"
@@ -102,9 +124,9 @@ module.exports = function(app){
                     console.log("Conectado correctamente a MongoDB");
 
                     var collection = db.collection('bids');
-                    var eventId = require('mongodb').ObjectID(req.body.id);
+                    var bidId = require('mongodb').ObjectID(req.body.id);
 
-                    collection.remove({_id : eventId}, function (err, response) {
+                    collection.remove({_id : bidId}, function (err, response) {
                         if (err || response.result.n == 0) {
                             console.log("Error al eliminar puja " + err);
                             res = returnCommonResponse(res, 400, {
@@ -112,10 +134,10 @@ module.exports = function(app){
                                 message: "Error eliminando puja"
                             });
                         } else {
-                            console.log("puja eliminado:");
+                            console.log("puja eliminada: " + bidId);
                             res = returnCommonResponse(res, 410, {
                                 deleted: true,
-                                message: "puja eliminado correctamente"
+                                message: "Puja eliminada correctamente"
                             });
                         }
                         db.close();
@@ -142,31 +164,31 @@ module.exports = function(app){
                 console.log("Conectado correctamente a MongoDB");
 
                 var collection = db.collection('bids');
-                var eventId = require('mongodb').ObjectID(req.params.id);
+                var bidId = require('mongodb').ObjectID(req.params.id);
                 
-                collection.find({_id: eventId}).toArray(function(err, result){
-                        console.log("result: " + result);
-                        if(err){
-                            console.log("Error buscando puja en DB");
-                            res = returnCommonResponse(res, 500, {
-                                found: false,
-                                message: "Error buscando puja en DB"
-                            });
-                        }else if(result.length == 0){
-                            console.log("Puja no encontrada");
-                            res = returnCommonResponse(res, 500, {
-                                found: false,
-                                message: "puja no encontrado en DB"
-                            });
-                        }else{
-                            res = returnCommonResponse(res, 200, {
-                                found: true,
-                                message: "puja encontrado",
-                                details: result[0]
-                            });
-                        }
-                        db.close();
-                    });
+                collection.find({_id: bidId}).toArray(function(err, result){
+                    console.log("result: " + result);
+                    if(err){
+                        console.log("Error buscando puja en DB");
+                        res = returnCommonResponse(res, 500, {
+                            found: false,
+                            message: "Error buscando puja en DB"
+                        });
+                    }else if(result.length == 0){
+                        console.log("Puja no encontrada");
+                        res = returnCommonResponse(res, 500, {
+                            found: false,
+                            message: "Puja " + bidId + " no encontrada en DB"
+                        });
+                    }else{
+                        res = returnCommonResponse(res, 200, {
+                            found: true,
+                            message: "Puja encontrada",
+                            details: result[0]
+                        });
+                    }
+                    db.close();
+                });
             }
         });
         console.log("getting bid - end");

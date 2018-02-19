@@ -30,7 +30,7 @@ module.exports = function(app, securePaths){
     app.post("/user", function(req, res){
         console.log("create user - init");
         
-        if(!req.body.username || !req.body.pass || !req.body.name){
+        if(!req.body.username.trim() || !req.body.pass.trim() || !req.body.name.trim()){
             res = returnCommonResponse(res, 400, {
                 created: false,
                 message: "Detalles del usuario no validos!"
@@ -88,7 +88,7 @@ module.exports = function(app, securePaths){
                                 });
                             } else {
                                 console.log("Usuario Creado");
-                                res = returnCommonResponse(res, 200, {
+                                res = returnCommonResponse(res, 201, {
                                     created: true,
                                     message: "Usuario creado satisfactoriamente",
                                     details: JSON.stringify(result.ops[0])
@@ -104,7 +104,7 @@ module.exports = function(app, securePaths){
     });
     
     //Read User
-    securePaths.get("/user/:id", function(req, res){
+    securePaths.get("/user/:username", function(req, res){
         console.log("getting event - init");
         
         mongoAccess.connect('mongodb://usuario:1234@ds123658.mlab.com:23658/masterunir',
@@ -121,7 +121,7 @@ module.exports = function(app, securePaths){
                 var collection = db.collection('users');
                 var userId = require('mongodb').ObjectID(req.params.id);
                 
-                collection.find({_id: userId}).toArray(function(err, result){
+                collection.find({username: req.params.username}).toArray(function(err, result){
                     console.log("User found: " + JSON.stringify(result[0]));
                     if(err){
                         console.log("Error buscando Usuario en DB");
@@ -133,7 +133,7 @@ module.exports = function(app, securePaths){
                         console.log("Usuario no encontrado");
                         res = returnCommonResponse(res, 404, {
                             found: false,
-                            message: "User con ID " + userId + " no encontrado"
+                            message: "User con ID " + req.params.username + " no encontrado"
                         });
                     }else{
                         res = returnCommonResponse(res, 200, {

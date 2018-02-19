@@ -3,7 +3,6 @@ var jwt = require('jsonwebtoken');
 var mongoAccess = require("mongodb").MongoClient;
 var bodyParser = require('body-parser');
 var securePaths = express.Router();
-const crypto = require('crypto');
 const encryptionKey = '.!?jkasxLjs?';
 
 var Usuario = require("./model/Usuario");
@@ -45,10 +44,11 @@ securePaths.use(function(req, res, next){
         }
 });
 
-userController(app, securePaths);
 pujaController(app);
 eventoController(app);
 authController(app);
+userController(app, securePaths);
+
 
 app.get("/", function(req, res){
    res.send("GET Works!");

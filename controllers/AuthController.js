@@ -1,3 +1,6 @@
+const crypto = require('crypto');
+const encryptionKey = '.!?jkasxLjs?';
+var jwt = require('jsonwebtoken');
 var mongoAccess = require("mongodb").MongoClient;
 
 module.exports = function(app){
@@ -56,5 +59,11 @@ module.exports = function(app){
         });
         console.log("auth user - end");
     });
+};
+
+function returnCommonResponse(res, httpCode, json){
+    res.status(httpCode);
+    res.json(json);
+    return res;
 }
 

@@ -1,5 +1,6 @@
 const moment = require('moment');
 var mongoAccess = require("mongodb").MongoClient;
+var objectID = require('mongodb').ObjectID;
 
 Evento = require("../model/Evento");
 
@@ -75,7 +76,7 @@ module.exports = function(app){
     app.delete("/event", function(req, res){
         console.log("delete event - init");
         
-        if(!req.body.id){
+        if(!req.body.id || !objectID.isValid(req.body.id)){
             res = returnCommonResponse(res, 400, {
                 deleted: false,
                 message: "Detalles del evento incorrectos!"
@@ -121,6 +122,14 @@ module.exports = function(app){
     app.get("/event/:id", function(req, res){
         console.log("getting event - init");
         
+        if(!objectID.isValid(req.params.id)){
+            res = returnCommonResponse(res, 400, {
+                deleted: false,
+                message: "Detalles del evento incorrectos!"
+            });
+            return this;
+        }
+        
         mongoAccess.connect('mongodb://usuario:1234@ds123658.mlab.com:23658/masterunir',
         function(err, db) {
             if (err) {
@@ -161,5 +170,44 @@ module.exports = function(app){
             }
         });
         console.log("getting event - end");
+    });
+    
+    //Read Event
+    app.get("/event", function(req, res){
+        console.log("getting all events - init");
+              
+        mongoAccess.connect('mongodb://usuario:1234@ds123658.mlab.com:23658/masterunir',
+        function(err, db) {
+            if (err) {
+                console.log("Error  conectando a la BD " + err);
+                res = returnCommonResponse(res, 500, {
+                    found: false,
+                    message: "DB error"
+                });
+            } else {
+                console.log("Conectado correctamente a MongoDB");
+
+                var collection = db.collection('events');
+                
+                collection.find().toArray(function(err, result){
+                    console.log("result: " + result);
+                    if(err){
+                        console.log("Error buscando Evento en DB");
+                        res = returnCommonResponse(res, 500, {
+                            found: false,
+                            message: "Error buscando evento en DB"
+                        });
+                    }else{
+                        res = returnCommonResponse(res, 200, {
+                            found: true,
+                            message: "Eventos encontrados",
+                            details: result
+                        });
+                    }
+                    db.close();
+                });
+            }
+        });
+        console.log("getting all events - end");
     });
 }
