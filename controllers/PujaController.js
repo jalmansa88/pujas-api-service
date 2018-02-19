@@ -25,9 +25,8 @@ module.exports = function(app){
         });
         mongoAccess.v
         if(!req.body.username 
-                || !req.body.amount 
+                || isNaN(req.body.amount)
                 || !objectID.isValid(req.body.event)
-                || !authToken
                 || !username === req.body.username){
             
             res = returnCommonResponse(res, 400, {
@@ -74,7 +73,7 @@ module.exports = function(app){
                     }else{
                         var bid = new Puja(
                                 username,
-                                req.body.amount,
+                                parseFloat(req.body.amount),
                                 req.body.event);
 
                         bidsCollection.insert(bid, function (err, result) {
