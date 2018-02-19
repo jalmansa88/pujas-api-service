@@ -15,5 +15,8 @@
         "jsonwebtoken": "^7.0.0",
         "moment": "^2.20.1",
         "mongodb": "^2.2.5"
+    },
+    "scripts": {
+        "start": "node main.js"
     }
 }

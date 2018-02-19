@@ -54,7 +54,7 @@ app.get("/", function(req, res){
    res.send("GET Works!");
 });
 
-app.listen(8080, function(){
+app.listen(process.env.PORT || 8080, function(){
     console.log("Servidor express ON en 8080");
 });
 
